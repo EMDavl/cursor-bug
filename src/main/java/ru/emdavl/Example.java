@@ -27,18 +27,21 @@ public class Example {
             sync.zadd(zsetName, i, "value" + i);
         }
 
-        ScoredValueScanCursor<String> cursor = sync.zscan(zsetName, ScanCursor.of("0"), ScanArgs.Builder.limit(1000));
         Set<String> set = new HashSet<>();
-        while (cursor.getValues() != null && !cursor.getValues().isEmpty()) {
+        ScoredValueScanCursor<String> cursor = null;
+        do  {
+            if (cursor == null) {
+                cursor = sync.zscan(zsetName, ScanCursor.of("0"), ScanArgs.Builder.limit(1000));
+            } else {
+                cursor = sync.zscan(zsetName, ScanCursor.of(cursor.getCursor()), ScanArgs.Builder.limit(1000));
+            }
+
             for (ScoredValue<String> value : cursor.getValues()) {
                 set.add(value.getValue());
             }
-            if (!cursor.isFinished()) {
-                cursor = sync.zscan(zsetName, ScanCursor.of(cursor.getCursor()), ScanArgs.Builder.limit(1000));
-            } else {
-                break;
-            }
-        }
+
+        } while (!cursor.isFinished());
+
         System.out.println("Entries read: " + set.size());
 
         anyConnection.close();
